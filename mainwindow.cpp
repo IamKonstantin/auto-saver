@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 
-#include <iostream>
+//#include <iostream>
 
 #include <QDateTime>
 #include <QFileDialog>
@@ -21,33 +21,39 @@ MainWindow::MainWindow(QWidget *parent)
     , last_modified(QDateTime::fromMSecsSinceEpoch(0))
     , changes_timer(new QTimer(this))
     , writing_timer(new QTimer(this))
+    , separator("(\\\\|/)+")
 {
     ui->setupUi(this);
     ui->error->setVisible(false);
     setWindowTitle("Auto Saver");
 
-    const QString filename = settings->value("filename").toString();
+    const QString filename = settings->value("file").toString();
     ui->source_file_path->setText(filename);
     connect(ui->choose_file, &QPushButton::clicked, this, &MainWindow::choose_file);
 
     const QString dirname = settings->value("dir").toString();
     ui->destination_dir_path->setText(dirname);
     connect(ui->choose_directory, &QPushButton::clicked, this, &MainWindow::choose_dir);
+//    connect(ui->destination_dir_path, &QLabel::textChanged, this, &MainWindow::choose_dir);
 
     connect(ui->table, &QTableWidget::itemChanged, this, &MainWindow::rename);
     fill_table();
 
     changes_timer->setSingleShot(true);
     changes_timer->setInterval(1000);
+    changes_timer->stop();
     connect(changes_timer, &QTimer::timeout, this, &MainWindow::check_changes);
 
     writing_timer->setSingleShot(true);
     changes_timer->setInterval(2000);
+    changes_timer->stop();
     connect(writing_timer, &QTimer::timeout, this, &MainWindow::check_writing);
 }
 
 MainWindow::~MainWindow()
 {
+    settings->setValue("dir", ui->destination_dir_path->text());
+    settings->setValue("file", ui->source_file_path->text());
     if (window_size.isValid()) {
         settings->setValue("window_size", window_size);
     }
@@ -66,37 +72,50 @@ MainWindow::~MainWindow()
 
 void MainWindow::choose_file()
 {
-    QString source_file_path = QFileDialog::getOpenFileName(this, tr("Open File"), "", tr("Save (*.*)"));
-    ui->source_file_path->setText(source_file_path);
-    settings->setValue("filename", source_file_path);
-    if (ui->destination_dir_path->text().isEmpty()) {
-        const QString source_dir = source_file_path.section(QDir::separator(), 0, -1);
-        const QString source_file = source_file_path.section(QDir::separator(), -1, -1);
-        const QString new_dir = source_file_path + "-backup" + QDir::separator();
-        const QString new_dir_path = source_dir + QDir::separator() + new_dir;
-        ui->destination_dir_path->setText(new_dir_path);
-        settings->setValue("dir", new_dir_path);
-        QDir d(source_dir);
-        if (d.mkdir(new_dir)) {
-        } else {
-            error(QString("Can not create directory '%s'. Check rights or root path existense.").arg(new_dir_path));
-            return;
+    QString dir = get_dir_from_paths({ui->source_file_path->text(), ui->destination_dir_path->text()});
+    QString source_file_path = QFileDialog::getOpenFileName(this,
+                                                            tr("Open File"),
+                                                            dir,
+                                                            tr("Save (*.*)"));
+    if (!source_file_path.isEmpty()) {
+        ui->source_file_path->setText(source_file_path);
+        if (ui->destination_dir_path->text().isEmpty()) {
+            const QString source_dir = source_file_path.section(separator, 0, -2);
+            const QString source_file = source_file_path.section(separator, -1);
+            const QString new_dir = source_file + " - backup";
+            const QString new_dir_path = source_dir + QDir::separator() + new_dir;
+            ui->destination_dir_path->setText(new_dir_path);
+            QDir dir(new_dir_path);
+            if (!dir.exists()) {
+                QDir(source_dir).mkdir(new_dir);
+            }
         }
+        fill_table();
     }
-
-    fill_table();
 }
 
 void MainWindow::choose_dir()
 {
-    QString dir = QFileDialog::getExistingDirectory(this,
-                                                    tr("Open Directory"),
-                                                    "",
-                                                    QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
-    ui->destination_dir_path->setText(dir);
-    settings->setValue("dir", dir);
+    QString dir = get_dir_from_paths({ui->destination_dir_path->text(), ui->source_file_path->text()});
+    QString destination_dir_path = QFileDialog::getExistingDirectory(this,
+                                                                     tr("Open Directory"),
+                                                                     dir,
+                                                                     QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    if (!destination_dir_path.isEmpty()) {
+        ui->destination_dir_path->setText(destination_dir_path);
+        fill_table();
+    }
+}
 
-    fill_table();
+QString MainWindow::get_dir_from_paths(const QStringList &list)
+{
+    for (const QString& path : list) {
+        if (!path.isEmpty()) {
+            QString dir = path.section(separator, 0, -2);
+            return dir;
+        }
+    }
+    return QString();
 }
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
@@ -108,16 +127,17 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 
 void MainWindow::paintEvent(QPaintEvent *event)
 {
+    QMainWindow::paintEvent(event);
     if (!painting_started)
     {
         window_size = settings->value("window_size").toSize();
-        QTimer::singleShot(10,
-                           [=](){
-                                resize(window_size);
-                           });
+        if (window_size.isValid())
+            QTimer::singleShot(0,
+                               [=](){
+                                    resize(window_size);
+                               });
     }
     painting_started = true;
-    QMainWindow::paintEvent(event);
 }
 
 void MainWindow::fill_table()
@@ -151,7 +171,7 @@ void MainWindow::fill_table()
         }
     }
 
-    const QString source_file = ui->source_file_path->text().section('/', -1, -1);
+    const QString source_file = ui->source_file_path->text().section(separator, -1, -1);
     QDir dir(ui->destination_dir_path->text());
     const QStringList sorted_filenames = dir.entryList(QDir::Files, QDir::Name);
     for (const QString& filename : sorted_filenames)
@@ -165,7 +185,7 @@ void MainWindow::fill_table()
 
 void MainWindow::add_file_to_table(const QString& dir_path, const QString& file_name, int insert_row)
 {
-    const QString source_file = ui->source_file_path->text().section('/', -1, -1);
+    const QString source_file = ui->source_file_path->text().section(separator, -1, -1);
     const int i = file_name.lastIndexOf(source_file);
     if (i > 1)
     {
@@ -221,7 +241,8 @@ void MainWindow::check_writing()
     if (new_last_modifed == last_modified)
     {
         last_modified = new_last_modifed;
-        const QString destination_file = new_last_modifed.toString(date_time_format) + ".." + ui->source_file_path->text().section('/', -1, -1);
+        QString source_file = ui->source_file_path->text().section(separator, -1, -1);
+        const QString destination_file = new_last_modifed.toString(date_time_format) + ".." + source_file;
         const QString destination_path(ui->destination_dir_path->text() + QDir::separator() + destination_file);
         const QString source_path = ui->source_file_path->text();
         if (!QFile::exists(destination_path))
@@ -297,7 +318,7 @@ void MainWindow::error(const QString &text)
 
 void MainWindow::log(const QString &text)
 {
-    std::cout << (QDateTime::currentDateTime().toString(date_time_format) + ": " + text).toLocal8Bit().data() << std::endl;
+//    std::cout << (QDateTime::currentDateTime().toString(date_time_format) + ": " + text).toLocal8Bit().data() << std::endl;
 }
 
 void MainWindow::compare_source_with_table()
@@ -331,7 +352,7 @@ void MainWindow::rename(QTableWidgetItem *item)
             return; // todo inspect
         }
         QString destination_file_name = ui->table->item(row, DateColumn)->text() + "."
-                            + ui->table->item(row, NameColumn)->text() + "." + ui->source_file_path->text().section('/', -1, -1);
+                            + ui->table->item(row, NameColumn)->text() + "." + ui->source_file_path->text().section(separator, -1, -1);
         QString destination_path = ui->destination_dir_path->text() + QDir::separator() + destination_file_name;
         QString source_path = saved_files[row].file_path;
         if (source_path != destination_path) {

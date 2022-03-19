@@ -11,8 +11,9 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
+find_package(QT NAMES Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+
 
 set(PROJECT_SOURCES
         main.cpp
@@ -22,40 +23,41 @@ set(PROJECT_SOURCES
         applybutton.cpp
         applybutton.h
 )
+add_executable(auto-saver WIN32 ${PROJECT_SOURCES} )
+target_link_libraries(auto-saver PRIVATE Qt${QT_VERSION_MAJOR}::Widgets )
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(auto-saver
-        MANUAL_FINALIZATION
-        ${PROJECT_SOURCES}
-    )
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET auto-saver APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
-else()
-    if(ANDROID)
-        add_library(auto-saver SHARED
-            ${PROJECT_SOURCES}
-        )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
-    else()
-        add_executable(auto-saver
-            ${PROJECT_SOURCES}
-        )
-    endif()
-endif()
 
-target_link_libraries(auto-saver PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-
-set_target_properties(auto-saver PROPERTIES
-    MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
-    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-    MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
+install(
+    TARGETS
+        auto-saver
+    DESTINATION
+        ".")
+install(
+    FILES
+        ${CMAKE_PREFIX_PATH}/bin/Qt5Core.dll
+        ${CMAKE_PREFIX_PATH}/bin/Qt5Gui.dll
+        ${CMAKE_PREFIX_PATH}/bin/Qt5Widgets.dll
+    DESTINATION
+        "."
 )
-
-if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(auto-saver)
-endif()
+install(
+    FILES
+        ${CMAKE_PREFIX_PATH}/plugins/platforms/qwindows.dll
+    DESTINATION
+        plugins/platforms
+)
+install(
+    FILES
+        ${CMAKE_PREFIX_PATH}/plugins/styles/qwindowsvistastyle.dll
+    DESTINATION
+        plugins/styles
+)
+set(WINDOWS_SYTSTEM32 C:/Windows/System32)
+install(
+    FILES
+        ${WINDOWS_SYTSTEM32}/vcruntime140.dll
+        ${WINDOWS_SYTSTEM32}/vcruntime140_1.dll
+        ${WINDOWS_SYTSTEM32}/vcruntime140_clr0400.dll
+    DESTINATION
+        "."
+)

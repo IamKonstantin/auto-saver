@@ -40,6 +40,7 @@ private:
         QDateTime timestamp;
     };
     QList<SavedFile> saved_files;
+    const QRegExp separator;
 
     void fill_table();
     void add_file_to_table(const QString& dir_path, const QString& file_name, int insert_row = -1);
@@ -48,6 +49,7 @@ private:
 private slots:
     void choose_file();
     void choose_dir();
+    QString get_dir_from_paths(const QStringList& list);
     void check_changes();
     void check_writing();
     void apply_save_file();
