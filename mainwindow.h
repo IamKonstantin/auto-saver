@@ -2,8 +2,7 @@
 
 #include <QMainWindow>
 #include <QDateTime>
-#include <QPointer>
-#include <QSettings>
+#include <QTableWidgetItem>
 
 
 QT_BEGIN_NAMESPACE
@@ -27,23 +26,33 @@ public:
     ~MainWindow();
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
 private:
     Ui::MainWindow *ui = nullptr;
-    QPointer<QSettings> settings;
+    class QSettings* settings;
     QDateTime last_modified;
+    bool painting_started = false;
     QSize window_size;
-    QList<QVariant> column_widths;
     class QTimer* changes_timer = nullptr;
     class QTimer* writing_timer = nullptr;
+    struct SavedFile {
+        QString file_path;
+        QDateTime timestamp;
+    };
+    QList<SavedFile> saved_files;
 
     void fill_table();
-    void add_file_to_table(const QString& dir_path, const QString& file_name);
+    void add_file_to_table(const QString& dir_path, const QString& file_name, int insert_row = -1);
+    QDateTime modifed_time();
+    void log(const QString &text);
 private slots:
+    void choose_file();
+    void choose_dir();
     void check_changes();
     void check_writing();
     void apply_save_file();
     void error(const QString& text);
-    void comare_source_with_table();
-    QDateTime modifed_time();
+    void compare_source_with_table();
+    void compare_source_with_table(int row);
+    void rename(QTableWidgetItem *item);
 };
-
