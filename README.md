@@ -7,6 +7,4 @@ Winodows 10 x64 release `auto-saver-win10-x64-0.1.zip` on page https://github.co
 # Todo
 1. Since my PC have x2 GUI scaling, the GUI maybe very huge on low dimensions monitors.
 2. Add turn clolumn.
-
-# Known bugs
-The auto-saver can dublicate saves in some cases. Apply save, close the app, open the app.
+3. The auto-saver can dublicate saves in some cases. Apply save, close the app, open the app.
