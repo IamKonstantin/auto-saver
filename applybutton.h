@@ -1,12 +1,14 @@
 #pragma once
 
 #include <QPushButton>
+#include <QDateTime>
+
 
 class ApplyButton : public QPushButton
 {
     Q_OBJECT
 public:
-    const QString saved_file_path;
+    const int row;
 
-    explicit ApplyButton(const QString& saved_file_path_, QWidget *parent = nullptr);
+    explicit ApplyButton(const int row_, QWidget *parent = nullptr);
 };
