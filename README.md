@@ -10,3 +10,7 @@ Download Winodows 10 x64 https://github.com/IamKonstantin/auto-saver/blob/main/r
 
 # Known bugs
 The auto-saver can dublicate saves in some cases. Apply save, close the app, open the app.
+
+
+При открытии нового файла приложение падает.
+При открытии нового файла должна выбиратья новая директория
