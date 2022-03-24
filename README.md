@@ -7,11 +7,3 @@ Download Winodows 10 x64 https://github.com/IamKonstantin/auto-saver/blob/main/r
 # Todo
 1. Since my PC have x2 GUI scaling, the GUI maybe very huge on low dimensions monitors.
 2. Add turn clolumn.
-
-# Known bugs
-The auto-saver can dublicate saves in some cases. Apply save, close the app, open the app.
-
-
-Auto-saver crashes with QApplyButton assertion at another file choose.  Done
-New directory with -backup postfix must opened at another file choose.  Done
-If choosed directory is deleted the error message reopens again and again.

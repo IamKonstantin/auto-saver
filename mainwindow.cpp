@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 
-#include <iostream>
+//#include <iostream>
 
 #include <QDateTime>
 #include <QFileDialog>
@@ -60,14 +60,17 @@ MainWindow::~MainWindow()
 {
     settings->setValue("dir", ui->destination_dir_path->text());
     settings->setValue("file", ui->source_file_path->text());
-    if (window_size.isValid()) {
+    if (window_size.isValid())
+    {
         settings->setValue("window_size", window_size);
     }
     QList<QVariant> column_widths;
-    for (int column = 0; column < ui->table->columnCount(); ++column) {
+    for (int column = 0; column < ui->table->columnCount(); ++column)
+    {
         column_widths.append(ui->table->columnWidth(column));
     }
-    if (column_widths.size() == ColumnSize) {
+    if (column_widths.size() == ColumnSize)
+    {
         settings->setValue("column_widths", column_widths);
     }
 
@@ -85,7 +88,8 @@ void MainWindow::choose_file()
                                                             tr("Save (*.*)"));
     const bool user_pressed_ok = !source_file_path.isEmpty();
     const bool file_changed = source_file_path != ui->source_file_path->text();
-    if (user_pressed_ok && file_changed) {
+    if (user_pressed_ok && file_changed)
+    {
         source_file_path.replace(separator, QDir::separator());
         ui->source_file_path->setText(source_file_path);
 
@@ -95,7 +99,8 @@ void MainWindow::choose_file()
         const QString new_dir_path = source_dir + QDir::separator() + new_dir;
 
         QDir dir(new_dir_path);
-        if (!dir.exists()) {
+        if (!dir.exists())
+        {
             if (QDir(source_dir).mkdir(new_dir))
             {
                 log(QString("made directory '%1'").arg(new_dir_path));
@@ -182,18 +187,24 @@ void MainWindow::fill_table()
     ui->table->setRowCount(0);
 
     QDateTime curren_modified = modifed_time();
-    if (curren_modified.isValid()) {
+    if (curren_modified.isValid())
+    {
         ui->error->setVisible(false);
-    } else {
+    }
+    else
+    {
         ui->error->setVisible(true);
         return;
     }
 
     QList<QVariant> column_widths = settings->value("column_widths").toList();
-    if (column_widths.size() == ColumnSize) {
-        for (int column = 0; column < ui->table->columnCount(); ++column) {
+    if (column_widths.size() == ColumnSize)
+    {
+        for (int column = 0; column < ui->table->columnCount(); ++column)
+        {
             int width = column_widths[column].toInt();
-            if (width) {
+            if (width)
+            {
                 ui->table->setColumnWidth(column, width);
             }
         }
@@ -352,9 +363,7 @@ void MainWindow::error(const QString &text)
 
 void MainWindow::log(const QString &text)
 {
-#ifdef DEBUG
-    std::cout << (QDateTime::currentDateTime().toString(date_time_format) + ": " + text).toLocal8Bit().data() << std::endl;
-#endif
+    //std::cout << (QDateTime::currentDateTime().toString(date_time_format) + ": " + text).toLocal8Bit().data() << std::endl;
 }
 
 void MainWindow::compare_source_with_table()
@@ -367,7 +376,8 @@ void MainWindow::compare_source_with_table()
         const bool same_file = curren_modified == saved_files[row].timestamp;
         apply->setText(same_file ? "Applied" : "Apply");
         apply->setEnabled(!same_file);
-        if (same_file) {
+        if (same_file)
+        {
             last_modified = saved_files[row].timestamp;
         }
     }
@@ -375,22 +385,27 @@ void MainWindow::compare_source_with_table()
 
 void MainWindow::rename(QTableWidgetItem *item)
 {
-    if (item->column() == NameColumn) {
+    if (item->column() == NameColumn)
+    {
         int row = item->row();
         ApplyButton* apply = qobject_cast<ApplyButton*>(ui->table->cellWidget(row, ApplyColumn));
-        if (!apply) {
+        if (!apply)
+        {
             return; // todo inspect
         }
         QString destination_file_name = ui->table->item(row, DateColumn)->text() + "."
                             + ui->table->item(row, NameColumn)->text() + "." + ui->source_file_path->text().section(separator, -1, -1);
         QString destination_path = ui->destination_dir_path->text() + QDir::separator() + destination_file_name;
         QString source_path = saved_files[row].file_path;
-        if (source_path != destination_path) {
-            if (QFile::rename(source_path, destination_path)) {
+        if (source_path != destination_path)
+        {
+            if (QFile::rename(source_path, destination_path))
+            {
                 log(QString("Renamed '%1' to '%2'").arg(source_path, destination_path));
                 saved_files[row].file_path = destination_path;
             }
-            else {
+            else
+            {
                 error(tr("Can not rename '%1' to '%2'. Don't type forbidden symbol or check either right and existance of files.").arg(source_path, destination_path));
 
                 // Block recursion
