@@ -35,11 +35,14 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->choose_directory, &QPushButton::clicked, this, &MainWindow::choose_dir);
 
     ui->table->setColumnCount(ColumnSize);
-    QTableWidgetItem *date_item = new QTableWidgetItem("Date");
+    QTableWidgetItem *date_item = new QTableWidgetItem(tr("Date"));
     ui->table->setHorizontalHeaderItem(DateColumn, date_item);
-    QTableWidgetItem *name_item = new QTableWidgetItem("Name");
+    QTableWidgetItem *turn_item = new QTableWidgetItem(tr("Turn"));
+    ui->table->setHorizontalHeaderItem(TurnColumn, turn_item);
+    ui->table->setColumnHidden(TurnColumn, true);
+    QTableWidgetItem *name_item = new QTableWidgetItem(tr("Name"));
     ui->table->setHorizontalHeaderItem(NameColumn, name_item);
-    QTableWidgetItem *apply_item = new QTableWidgetItem("Apply save");
+    QTableWidgetItem *apply_item = new QTableWidgetItem(tr("Apply save"));
     ui->table->setHorizontalHeaderItem(ApplyColumn, apply_item);
     connect(ui->table, &QTableWidget::itemChanged, this, &MainWindow::rename);
 
@@ -210,53 +213,46 @@ void MainWindow::fill_table()
         }
     }
 
-    const QString source_file = ui->source_file_path->text().section(separator, -1, -1);
     QDir dir(ui->destination_dir_path->text());
     const QStringList sorted_filenames = dir.entryList(QDir::Files, QDir::Name);
     for (const QString& filename : sorted_filenames)
     {
-        add_file_to_table(ui->destination_dir_path->text(), filename);
+        add_file_to_table(filename);
     }
     compare_source_with_table();
     ui->table->scrollToBottom();
     check_changes();
 }
 
-void MainWindow::add_file_to_table(const QString& dir_path, const QString& file_name, int insert_row)
+void MainWindow::add_file_to_table(const QString& file_name)
 {
-    const QString source_file = ui->source_file_path->text().section(separator, -1, -1);
-    const int i = file_name.lastIndexOf(source_file);
-    if (i > 1)
+    SavedFile candidat(ui->source_file_path->text(), ui->destination_dir_path->text(), file_name);
+    if (candidat.is_valid())
     {
-        const QString timestamp_and_name = file_name.left(i - 1);
-        if (timestamp_and_name.count('.') > 0)
-        {
-            QString timestamp_str = timestamp_and_name.left(timestamp_and_name.indexOf('.'));
-            QString user_name = timestamp_and_name.right(timestamp_and_name.size() - timestamp_and_name.lastIndexOf('.') - 1);
-            QDateTime timestamp = QDateTime::fromString(timestamp_str, date_time_format);
-            if (timestamp.isValid())
-            {
-                assert(insert_row <= ui->table->rowCount());
-                const int row = insert_row >= 0 ? insert_row : ui->table->rowCount();
+        const int row = ui->table->rowCount();
+        ui->table->insertRow(row);
+        saved_files.insert(row, candidat);
 
-                ui->table->insertRow(row);
-                SavedFile sf{dir_path + QDir::separator() + file_name, timestamp};
-                saved_files.insert(row, sf);
+        static constexpr auto user_format = "yyyy.MM.dd hh:mm:ss";
 
-                QTableWidgetItem *date_item = new QTableWidgetItem(timestamp_str);
-                ui->table->setItem(row, DateColumn, date_item);
+        QTableWidgetItem *date_item = new QTableWidgetItem(candidat.timestamp.toString(user_format));
+        ui->table->setItem(row, DateColumn, date_item);
+        Qt::ItemFlags date_flags = date_item->flags();
+        date_flags &= ~Qt::ItemIsEditable;
+        date_item->setFlags(date_flags);
 
-                Qt::ItemFlags f = date_item->flags();
-                f &= ~Qt::ItemIsEditable;
-                date_item->setFlags(f);
-                QTableWidgetItem *name_item = new QTableWidgetItem(user_name);
-                ui->table->setItem(row, NameColumn, name_item);
+        QTableWidgetItem *turn_item = new QTableWidgetItem(QString::number(candidat.turn));
+        ui->table->setItem(row, TurnColumn, turn_item);
+        Qt::ItemFlags turn_flags = turn_item->flags();
+        turn_flags &= ~Qt::ItemIsEditable;
+        turn_item->setFlags(turn_flags);
 
-                QPushButton* apply = new ApplyButton(row);  // Don't need to set parent here.
-                ui->table->setCellWidget(row, ApplyColumn, apply);
-                connect(apply, &QPushButton::clicked, this, &MainWindow::apply_save_file);
-            }
-        }
+        QTableWidgetItem *name_item = new QTableWidgetItem(candidat.name);
+        ui->table->setItem(row, NameColumn, name_item);
+
+        QPushButton* apply = new ApplyButton(row);  // Don't need to set parent here.
+        ui->table->setCellWidget(row, ApplyColumn, apply);
+        connect(apply, &QPushButton::clicked, this, &MainWindow::apply_save_file);
     }
 }
 
@@ -287,16 +283,15 @@ void MainWindow::check_writing()
     if (new_last_modifed == last_modified)
     {
         last_modified = new_last_modifed;
-        QString source_file = ui->source_file_path->text().section(separator, -1, -1);
-        const QString destination_file = new_last_modifed.toString(date_time_format) + ".." + source_file;
-        const QString destination_path(ui->destination_dir_path->text() + QDir::separator() + destination_file);
+        SavedFile candidat(ui->source_file_path->text(), ui->destination_dir_path->text(), last_modified);
+        const QString destination_path = candidat.get_file_path();
         const QString source_path = ui->source_file_path->text();
         if (!QFile::exists(destination_path))
         {
             if (QFile::copy(source_path, destination_path))
             {
                 log(QString("Copied '%1' to '%2'").arg(source_path, destination_path));
-                add_file_to_table(ui->destination_dir_path->text(), destination_file);
+                add_file_to_table(candidat.get_file_name());
                 compare_source_with_table();
             }
             else
@@ -327,7 +322,7 @@ void MainWindow::apply_save_file()
     QObject* o = sender();
     ApplyButton* apply = qobject_cast<ApplyButton*>(o);
     assert(apply);
-    const QString source = saved_files[apply->row].file_path;
+    const QString source = saved_files[apply->row].get_file_path();
     const QString destination = ui->source_file_path->text();
     if (QFile::exists(destination))
     {
@@ -387,22 +382,20 @@ void MainWindow::rename(QTableWidgetItem *item)
 {
     if (item->column() == NameColumn)
     {
-        int row = item->row();
-        ApplyButton* apply = qobject_cast<ApplyButton*>(ui->table->cellWidget(row, ApplyColumn));
-        if (!apply)
+        const int row = item->row();
+        const QString new_name = ui->table->item(row, NameColumn)->text();
+        if (new_name != saved_files[row].name)
         {
-            return; // todo inspect
-        }
-        QString destination_file_name = ui->table->item(row, DateColumn)->text() + "."
-                            + ui->table->item(row, NameColumn)->text() + "." + ui->source_file_path->text().section(separator, -1, -1);
-        QString destination_path = ui->destination_dir_path->text() + QDir::separator() + destination_file_name;
-        QString source_path = saved_files[row].file_path;
-        if (source_path != destination_path)
-        {
+            SavedFile candidat(saved_files[row]);
+            candidat.name = new_name;
+
+            QString source_path(saved_files[row].get_file_path());
+            QString destination_path(candidat.get_file_path());
+
             if (QFile::rename(source_path, destination_path))
             {
                 log(QString("Renamed '%1' to '%2'").arg(source_path, destination_path));
-                saved_files[row].file_path = destination_path;
+                saved_files[row].name = candidat.name;  // const objects removed assigment consturctor
             }
             else
             {

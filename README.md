@@ -5,5 +5,4 @@ auto-saver is GUI application, which monitors the file and makes a backup copy, 
 Download Winodows 10 x64 https://github.com/IamKonstantin/auto-saver/blob/main/releases/auto-saver-win10-x64-0.1.zip
 
 # Todo
-1. Since my PC have x2 GUI scaling, the GUI maybe very huge on low dimensions monitors.
-2. Add turn clolumn.
+1. Add turn clolumn.
