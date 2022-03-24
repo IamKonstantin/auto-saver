@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 
-//#include <iostream>
+#include <iostream>
 
 #include <QDateTime>
 #include <QFileDialog>
@@ -18,14 +18,13 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , settings(new QSettings("auto-saver.ini", QSettings::IniFormat, this))
-    , last_modified(QDateTime::fromMSecsSinceEpoch(0))
     , changes_timer(new QTimer(this))
     , writing_timer(new QTimer(this))
     , separator("(\\\\|/)+")
 {
     ui->setupUi(this);
     ui->error->setVisible(false);
-    setWindowTitle("Auto Saver");
+    setWindowTitle(tr("Auto Saver"));
 
     const QString filename = settings->value("file").toString();
     ui->source_file_path->setText(filename);
@@ -34,10 +33,15 @@ MainWindow::MainWindow(QWidget *parent)
     const QString dirname = settings->value("dir").toString();
     ui->destination_dir_path->setText(dirname);
     connect(ui->choose_directory, &QPushButton::clicked, this, &MainWindow::choose_dir);
-//    connect(ui->destination_dir_path, &QLabel::textChanged, this, &MainWindow::choose_dir);
 
+    ui->table->setColumnCount(ColumnSize);
+    QTableWidgetItem *date_item = new QTableWidgetItem("Date");
+    ui->table->setHorizontalHeaderItem(DateColumn, date_item);
+    QTableWidgetItem *name_item = new QTableWidgetItem("Name");
+    ui->table->setHorizontalHeaderItem(NameColumn, name_item);
+    QTableWidgetItem *apply_item = new QTableWidgetItem("Apply save");
+    ui->table->setHorizontalHeaderItem(ApplyColumn, apply_item);
     connect(ui->table, &QTableWidget::itemChanged, this, &MainWindow::rename);
-    fill_table();
 
     changes_timer->setSingleShot(true);
     changes_timer->setInterval(1000);
@@ -48,6 +52,8 @@ MainWindow::MainWindow(QWidget *parent)
     changes_timer->setInterval(2000);
     changes_timer->stop();
     connect(writing_timer, &QTimer::timeout, this, &MainWindow::check_writing);
+
+    fill_table();
 }
 
 MainWindow::~MainWindow()
@@ -77,19 +83,31 @@ void MainWindow::choose_file()
                                                             tr("Open File"),
                                                             dir,
                                                             tr("Save (*.*)"));
-    if (!source_file_path.isEmpty()) {
+    const bool user_pressed_ok = !source_file_path.isEmpty();
+    const bool file_changed = source_file_path != ui->source_file_path->text();
+    if (user_pressed_ok && file_changed) {
+        source_file_path.replace(separator, QDir::separator());
         ui->source_file_path->setText(source_file_path);
-        if (ui->destination_dir_path->text().isEmpty()) {
-            const QString source_dir = source_file_path.section(separator, 0, -2);
-            const QString source_file = source_file_path.section(separator, -1);
-            const QString new_dir = source_file + " - backup";
-            const QString new_dir_path = source_dir + QDir::separator() + new_dir;
-            ui->destination_dir_path->setText(new_dir_path);
-            QDir dir(new_dir_path);
-            if (!dir.exists()) {
-                QDir(source_dir).mkdir(new_dir);
+
+        const QString source_dir = source_file_path.section(QDir::separator(), 0, -2);
+        const QString source_file = source_file_path.section(QDir::separator(), -1);
+        const QString new_dir = source_file + " - backup";
+        const QString new_dir_path = source_dir + QDir::separator() + new_dir;
+
+        QDir dir(new_dir_path);
+        if (!dir.exists()) {
+            if (QDir(source_dir).mkdir(new_dir))
+            {
+                log(QString("made directory '%1'").arg(new_dir_path));
+            }
+            else
+            {
+                error(tr("Can't make directory '%1'").arg(new_dir_path));
+                return;
             }
         }
+
+        ui->destination_dir_path->setText(new_dir_path);
         fill_table();
     }
 }
@@ -101,7 +119,11 @@ void MainWindow::choose_dir()
                                                                      tr("Open Directory"),
                                                                      dir,
                                                                      QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
-    if (!destination_dir_path.isEmpty()) {
+    const bool user_pressed_ok = !destination_dir_path.isEmpty();
+    const bool dir_changed = destination_dir_path != ui->destination_dir_path->text();
+    if (user_pressed_ok && dir_changed)
+    {
+        destination_dir_path.replace(separator, QDir::separator());
         ui->destination_dir_path->setText(destination_dir_path);
         fill_table();
     }
@@ -109,8 +131,10 @@ void MainWindow::choose_dir()
 
 QString MainWindow::get_dir_from_paths(const QStringList &list)
 {
-    for (const QString& path : list) {
-        if (!path.isEmpty()) {
+    for (const QString& path : list)
+    {
+        if (!path.isEmpty())
+        {
             QString dir = path.section(separator, 0, -2);
             return dir;
         }
@@ -119,7 +143,8 @@ QString MainWindow::get_dir_from_paths(const QStringList &list)
 }
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
-    if (painting_started) {
+    if (painting_started)
+    {
         window_size = event->size();
     }
     QMainWindow::resizeEvent(event);
@@ -150,16 +175,19 @@ void MainWindow::fill_table()
     changes_timer->stop();
     writing_timer->stop();
 
-    ui->table->clear();
-    saved_files.clear();
+    last_modified = QDateTime::fromMSecsSinceEpoch(0);
 
-    ui->table->setColumnCount(ColumnSize);
-    QTableWidgetItem *date_item = new QTableWidgetItem("Date");
-    ui->table->setHorizontalHeaderItem(DateColumn, date_item);
-    QTableWidgetItem *name_item = new QTableWidgetItem("Name");
-    ui->table->setHorizontalHeaderItem(NameColumn, name_item);
-    QTableWidgetItem *apply_item = new QTableWidgetItem("Apply save");
-    ui->table->setHorizontalHeaderItem(ApplyColumn, apply_item);
+    saved_files.clear();
+    ui->table->clearContents();
+    ui->table->setRowCount(0);
+
+    QDateTime curren_modified = modifed_time();
+    if (curren_modified.isValid()) {
+        ui->error->setVisible(false);
+    } else {
+        ui->error->setVisible(true);
+        return;
+    }
 
     QList<QVariant> column_widths = settings->value("column_widths").toList();
     if (column_widths.size() == ColumnSize) {
@@ -224,14 +252,21 @@ void MainWindow::add_file_to_table(const QString& dir_path, const QString& file_
 void MainWindow::check_changes()
 {
     const QDateTime new_last_modifed = modifed_time();
-    if (new_last_modifed.isValid() && new_last_modifed > last_modified)
+    if (new_last_modifed.isValid())
     {
-        last_modified = new_last_modifed;
-        writing_timer->start();
+        if ( new_last_modifed > last_modified)
+        {
+            last_modified = new_last_modifed;
+            writing_timer->start();
+        }
+        else
+        {
+            changes_timer->start();
+        }
     }
     else
     {
-        changes_timer->start();
+        ui->error->setVisible(true);
     }
 }
 
@@ -250,13 +285,12 @@ void MainWindow::check_writing()
             if (QFile::copy(source_path, destination_path))
             {
                 log(QString("Copied '%1' to '%2'").arg(source_path, destination_path));
-                ui->error->setVisible(false);
                 add_file_to_table(ui->destination_dir_path->text(), destination_file);
                 compare_source_with_table();
             }
             else
             {
-                error(QString("Can not copy '%1' to '%2'. Check either rights and existence of file.").arg(source_path, destination_path));
+                error(tr("Can not copy '%1' to '%2'. Check either rights and existence of file.").arg(source_path, destination_path));
                 ui->error->setVisible(true);
                 last_modified = QDateTime::fromSecsSinceEpoch(0);
                 return;
@@ -292,7 +326,7 @@ void MainWindow::apply_save_file()
         }
         else
         {
-           error(QString("Can not remove '%1'. Check either rights and existence of file.").arg(destination));
+           error(tr("Can not remove '%1'. Check either rights and existence of file.").arg(destination));
         }
     }
     if (!QFile::exists(destination))
@@ -304,7 +338,7 @@ void MainWindow::apply_save_file()
         }
         else
         {
-            error(QString("Can not copy '%1' to '%2'. Check either rights and existence of file.").arg(source, destination));
+            error(tr("Can not copy '%1' to '%2'. Check either rights and existence of file.").arg(source, destination));
         }
     }
     ui->table->selectRow(apply->row);
@@ -318,7 +352,9 @@ void MainWindow::error(const QString &text)
 
 void MainWindow::log(const QString &text)
 {
-//    std::cout << (QDateTime::currentDateTime().toString(date_time_format) + ": " + text).toLocal8Bit().data() << std::endl;
+#ifdef DEBUG
+    std::cout << (QDateTime::currentDateTime().toString(date_time_format) + ": " + text).toLocal8Bit().data() << std::endl;
+#endif
 }
 
 void MainWindow::compare_source_with_table()
@@ -331,16 +367,10 @@ void MainWindow::compare_source_with_table()
         const bool same_file = curren_modified == saved_files[row].timestamp;
         apply->setText(same_file ? "Applied" : "Apply");
         apply->setEnabled(!same_file);
+        if (same_file) {
+            last_modified = saved_files[row].timestamp;
+        }
     }
-}
-
-void MainWindow::compare_source_with_table(int row)
-{
-    ApplyButton* apply = qobject_cast<ApplyButton*>(ui->table->cellWidget(row, ApplyColumn));
-    assert(apply);
-    const bool same_file = last_modified == saved_files[row].timestamp;
-    apply->setText(same_file ? "Applied" : "Apply");
-    apply->setEnabled(!same_file);
 }
 
 void MainWindow::rename(QTableWidgetItem *item)
@@ -361,7 +391,7 @@ void MainWindow::rename(QTableWidgetItem *item)
                 saved_files[row].file_path = destination_path;
             }
             else {
-                error(QString("Can not rename '%1' to '%2'. Don't type forbidden symbol or check either right and existance of files.").arg(source_path, destination_path));
+                error(tr("Can not rename '%1' to '%2'. Don't type forbidden symbol or check either right and existance of files.").arg(source_path, destination_path));
 
                 // Block recursion
                 ui->table->blockSignals(true);
@@ -380,7 +410,7 @@ QDateTime MainWindow::modifed_time()
     const QFileInfo info(ui->source_file_path->text());
     if (!info.isFile())
     {
-        error(QString("File '%1' deleted or not regular file").arg(ui->source_file_path->text()));
+        error(tr("File '%1' deleted or not regular file").arg(ui->source_file_path->text()));
         return QDateTime();
     }
     QDateTime without_ms = QDateTime::fromSecsSinceEpoch(info.lastModified().toSecsSinceEpoch());

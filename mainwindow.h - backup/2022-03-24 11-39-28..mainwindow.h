@@ -57,3 +57,4 @@ private slots:
     void compare_source_with_table();
     void rename(QTableWidgetItem *item);
 };
+
