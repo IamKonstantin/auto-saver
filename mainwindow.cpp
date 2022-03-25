@@ -19,7 +19,6 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , settings(new QSettings("auto-saver.ini", QSettings::IniFormat, this))
     , changes_timer(new QTimer(this))
-    , writing_timer(new QTimer(this))
     , separator("(\\\\|/)+")
 {
     ui->setupUi(this);
@@ -50,11 +49,6 @@ MainWindow::MainWindow(QWidget *parent)
     changes_timer->setInterval(1000);
     changes_timer->stop();
     connect(changes_timer, &QTimer::timeout, this, &MainWindow::check_changes);
-
-    writing_timer->setSingleShot(true);
-    changes_timer->setInterval(2000);
-    changes_timer->stop();
-    connect(writing_timer, &QTimer::timeout, this, &MainWindow::check_writing);
 
     fill_table();
 }
@@ -181,7 +175,6 @@ void MainWindow::fill_table()
     }
 
     changes_timer->stop();
-    writing_timer->stop();
 
     last_modified = QDateTime::fromMSecsSinceEpoch(0);
 
@@ -261,15 +254,32 @@ void MainWindow::check_changes()
     const QDateTime new_last_modifed = modifed_time();
     if (new_last_modifed.isValid())
     {
-        if ( new_last_modifed > last_modified)
+        QDateTime now = QDateTime::currentDateTime();
+        if (new_last_modifed > last_modified && now.toSecsSinceEpoch() - new_last_modifed.toSecsSinceEpoch() > 10)
         {
             last_modified = new_last_modifed;
-            writing_timer->start();
+            SavedFile candidat(ui->source_file_path->text(), ui->destination_dir_path->text(), last_modified);
+            const QString destination_path = candidat.get_file_path();
+            const QString source_path = ui->source_file_path->text();
+            if (!QFile::exists(destination_path))
+            {
+                if (QFile::copy(source_path, destination_path))
+                {
+                    log(QString("Copied '%1' to '%2'").arg(source_path, destination_path));
+                    add_file_to_table(candidat.get_file_name());
+                    compare_source_with_table();
+                }
+                else
+                {
+                    error(tr("Can not copy '%1' to '%2'. Check either rights and existence of file.").arg(source_path, destination_path));
+                    ui->error->setVisible(true);
+                    last_modified = QDateTime::fromSecsSinceEpoch(0);
+                    return;
+                }
+            }
         }
-        else
-        {
-            changes_timer->start();
-        }
+
+        changes_timer->start();
     }
     else
     {
@@ -277,47 +287,9 @@ void MainWindow::check_changes()
     }
 }
 
-void MainWindow::check_writing()
-{
-    const QDateTime new_last_modifed = modifed_time();
-    if (new_last_modifed == last_modified)
-    {
-        last_modified = new_last_modifed;
-        SavedFile candidat(ui->source_file_path->text(), ui->destination_dir_path->text(), last_modified);
-        const QString destination_path = candidat.get_file_path();
-        const QString source_path = ui->source_file_path->text();
-        if (!QFile::exists(destination_path))
-        {
-            if (QFile::copy(source_path, destination_path))
-            {
-                log(QString("Copied '%1' to '%2'").arg(source_path, destination_path));
-                add_file_to_table(candidat.get_file_name());
-                compare_source_with_table();
-            }
-            else
-            {
-                error(tr("Can not copy '%1' to '%2'. Check either rights and existence of file.").arg(source_path, destination_path));
-                ui->error->setVisible(true);
-                last_modified = QDateTime::fromSecsSinceEpoch(0);
-                return;
-            }
-        }
-        changes_timer->start();
-    }
-    else if (new_last_modifed.isValid())
-    {
-        writing_timer->start();
-    }
-    else
-    {
-        changes_timer->start();
-    }
-}
-
 void MainWindow::apply_save_file()
 {
     changes_timer->stop();
-    writing_timer->stop();
 
     QObject* o = sender();
     ApplyButton* apply = qobject_cast<ApplyButton*>(o);

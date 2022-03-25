@@ -36,7 +36,6 @@ private:
     bool painting_started = false;
     QSize window_size;
     class QTimer* changes_timer = nullptr;
-    class QTimer* writing_timer = nullptr;
     QList<SavedFile> saved_files;
     const QRegExp separator;
 
@@ -53,5 +52,4 @@ private slots:
     void choose_file();
     void choose_dir();
     void check_changes();
-    void check_writing();
 };

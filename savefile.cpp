@@ -7,7 +7,7 @@
 
 // I don't like next two lines
 const QRegExp dir_separator("(\\\\|/)+");
-constexpr auto date_time_format = "yyyy.MM.dd hh:mm:ss";
+constexpr auto date_time_format = "yyyy-MM-dd hh-mm-ss";
 
 
 SavedFile::SavedFile(const QString &source_file_path_, const QString &destination_dir_path_, const QDateTime &timestamp_)
