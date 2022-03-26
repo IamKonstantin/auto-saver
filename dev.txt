@@ -1,3 +1,9 @@
+git pull
+git checkout -b <NEW BRANCH name>
+git add *
+git commit -F commit.message
+git push
+
 copy "Изгнанники Хорна_Автосохранение.11003162850.save" "Изгнанники Хорна_Автосохранение.11003162850.save.truncated"
 fsutil file setEOF "Изгнанники Хорна_Автосохранение.11003162850.save.truncated" 1024
 copy "Изгнанники Хорна_Автосохранение.21003162850.save" "Изгнанники Хорна_Автосохранение.21003162850.save.truncated"
