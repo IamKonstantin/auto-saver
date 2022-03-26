@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(auto-saver VERSION 0.1 LANGUAGES CXX)
+project(auto-saver VERSION 0.2 LANGUAGES CXX)
 
 
 
@@ -26,6 +26,8 @@ set(PROJECT_SOURCES
         mainwindow.ui
         applybutton.cpp
         applybutton.h
+        savefile.h
+        savefile.cpp
 )
 add_executable(auto-saver WIN32 ${PROJECT_SOURCES} )
 target_link_libraries(auto-saver PRIVATE Qt${QT_VERSION_MAJOR}::Widgets )
