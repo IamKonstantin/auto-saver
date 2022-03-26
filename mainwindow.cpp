@@ -38,7 +38,6 @@ MainWindow::MainWindow(QWidget *parent)
     ui->table->setHorizontalHeaderItem(DateColumn, date_item);
     QTableWidgetItem *turn_item = new QTableWidgetItem(tr("Turn"));
     ui->table->setHorizontalHeaderItem(TurnColumn, turn_item);
-    ui->table->setColumnHidden(TurnColumn, true);
     QTableWidgetItem *name_item = new QTableWidgetItem(tr("Name"));
     ui->table->setHorizontalHeaderItem(NameColumn, name_item);
     QTableWidgetItem *apply_item = new QTableWidgetItem(tr("Apply save"));

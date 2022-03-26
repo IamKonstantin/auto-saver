@@ -10,8 +10,8 @@ struct SavedFile {
     const QString source_file;
     const QString destination_dir_path;
 
-    QDateTime timestamp;
-    int turn = 0;
+    /*const */QDateTime timestamp;  // TODO make them const with lambda initailazation
+    /*const */int turn = 0;
     QString name;
 
     SavedFile(const QString& source_file_path_, const QString& destination_dir_path_, const QDateTime& timestamp_);
@@ -21,6 +21,9 @@ struct SavedFile {
         return timestamp.isValid();
     }
 
-    QString get_file_path();
-    QString get_file_name();
+    QString get_file_path() const;
+    QString get_file_name() const;
+
+private:
+    int read_turn();
 };
