@@ -74,14 +74,14 @@ int SavedFile::read_turn()
 //    }
 
     auto get_turn = [&](int offset)->int {
-        char prefix_0 = data[offset];
-        char turn_0 = data[offset + 1];
+        unsigned char prefix_0 = data[offset];
+        unsigned char turn_0 = data[offset + 1];
 
-        char prefix_1 = data[offset + 2];
-        char turn_1 = data[offset + 3];
+        unsigned char prefix_1 = data[offset + 2];
+        unsigned char turn_1 = data[offset + 3];
 
-        char prefix_2 = data[offset + 17];
-        char turn_2 = data[offset + MAX_DATA_OFFSET];
+        unsigned char prefix_2 = data[offset + 17];
+        unsigned char turn_2 = data[offset + MAX_DATA_OFFSET];
 
         if (prefix_0 == 0x16
                 && prefix_1 == 0x16

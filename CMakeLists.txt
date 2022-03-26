@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(auto-saver VERSION 0.1 LANGUAGES CXX)
+project(auto-saver VERSION 0.2 LANGUAGES CXX)
 
 
 
